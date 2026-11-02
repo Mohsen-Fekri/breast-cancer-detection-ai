@@ -1,0 +1,29 @@
+{
+  "dataset": "BreastMNIST (MedMNIST v2), 224x224 breast ultrasound, CC BY 4.0",
+  "source": "https://zenodo.org/records/10519652",
+  "positive_class": "malignant",
+  "split": {
+    "method": "official MedMNIST splits",
+    "training_images": 546,
+    "test_images": 156
+  },
+  "training": {
+    "epochs": 10,
+    "backbone": "EfficientNet-B0, ImageNet init, last 3 blocks fine-tuned",
+    "augmentation": "horizontal flip, rotation within 10 degrees",
+    "loss": "BCE with positive class weight",
+    "seed": 2026
+  },
+  "test": {
+    "n": 156.0,
+    "positive_rate": 0.2692,
+    "accuracy": 0.8718,
+    "precision": 0.72,
+    "sensitivity": 0.8571,
+    "specificity": 0.8772,
+    "f1": 0.7826,
+    "roc_auc": 0.916,
+    "threshold": 0.5
+  },
+  "note": "Single-institution dataset of 780 images. Scores describe this test split only and are not evidence of clinical performance."
+}

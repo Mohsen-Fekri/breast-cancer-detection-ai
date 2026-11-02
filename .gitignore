@@ -36,3 +36,6 @@ assets/
 
 # Logs
 *.log
+
+# Downloaded datasets
+data/

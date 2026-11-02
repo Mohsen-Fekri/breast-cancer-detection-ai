@@ -9,7 +9,7 @@ import numpy as np
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, Dataset, Subset
-from PIL import Image
+from PIL import Image, ImageOps
 
 from meddetect.config import DEFAULT_CHECKPOINT, INPUT_SIZE
 from meddetect.model import build_model, save_checkpoint
@@ -20,7 +20,8 @@ from meddetect.synthetic import generate_labeled_images
 class FolderBinaryDataset(Dataset):
     """Expect ``root/negative/*.png`` and ``root/positive/*.png`` (or jpg)."""
 
-    def __init__(self, root: str | Path) -> None:
+    def __init__(self, root: str | Path, augment: bool = False) -> None:
+        self.augment = augment
         self.samples: list[tuple[Path, int]] = []
         root_path = Path(root)
         mapping = {"negative": 0, "positive": 1, "benign": 0, "malignant": 1}
@@ -43,8 +44,17 @@ class FolderBinaryDataset(Dataset):
     def __getitem__(self, index: int) -> tuple[torch.Tensor, torch.Tensor]:
         path, label = self.samples[index]
         image = Image.open(path).convert("RGB")
+        if self.augment:
+            image = augment_image(image)
         tensor, _ = image_to_tensor(image)
         return tensor, torch.tensor([label], dtype=torch.float32)
+
+
+def augment_image(image: Image.Image) -> Image.Image:
+    """Light ultrasound-safe augmentation: horizontal flip and a small rotation."""
+    if np.random.rand() < 0.5:
+        image = ImageOps.mirror(image)
+    return image.rotate(float(np.random.uniform(-10, 10)), resample=Image.Resampling.BILINEAR)
 
 
 class SyntheticDataset(Dataset):
@@ -117,7 +127,8 @@ def binary_metrics(probabilities: np.ndarray, targets: np.ndarray, threshold: fl
     distinct = np.r_[np.flatnonzero(np.diff(sorted_scores)), len(sorted_scores) - 1]
     tpr = np.r_[0.0, tp_curve[distinct] / max(int((targets == 1).sum()), 1)]
     fpr = np.r_[0.0, fp_curve[distinct] / max(int((targets == 0).sum()), 1)]
-    roc_auc = float(np.trapezoid(tpr, fpr))
+    trapezoid = getattr(np, "trapezoid", None) or np.trapz  # np.trapz before NumPy 2
+    roc_auc = float(trapezoid(tpr, fpr))
 
     return {
         "n": float(len(targets)),
@@ -158,6 +169,9 @@ def train(
     seed: int,
     device: str,
     validation_fraction: float = 0.2,
+    eval_dir: str | Path | None = None,
+    augment: bool = False,
+    unfreeze_last: int = 0,
 ) -> dict[str, dict[str, float]]:
     torch.manual_seed(seed)
     resolved = torch.device(device)
@@ -166,15 +180,23 @@ def train(
     else:
         if data_dir is None:
             raise ValueError("Provide --data-dir or pass --synthetic.")
-        dataset = FolderBinaryDataset(data_dir)
+        dataset = FolderBinaryDataset(data_dir, augment=augment)
 
-    train_dataset, validation_dataset = stratified_split(dataset, validation_fraction, seed)
+    if eval_dir is not None:
+        # A fixed held-out folder (e.g. an official test split) replaces the random split.
+        train_dataset, validation_dataset = dataset, FolderBinaryDataset(eval_dir)
+    else:
+        train_dataset, validation_dataset = stratified_split(dataset, validation_fraction, seed)
     loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
     validation_loader = DataLoader(validation_dataset, batch_size=batch_size, shuffle=False, num_workers=0)
     model = build_model(pretrained=pretrained)
     if freeze_backbone:
         for parameter in model.features.parameters():
             parameter.requires_grad = False
+        # Fine-tune only the last few blocks: most of the accuracy gain at a fraction of the CPU cost.
+        for block in list(model.features)[len(model.features) - unfreeze_last:] if unfreeze_last else []:
+            for parameter in block.parameters():
+                parameter.requires_grad = True
     model.to(resolved)
     model.train()
 
@@ -182,7 +204,12 @@ def train(
         filter(lambda p: p.requires_grad, model.parameters()),
         lr=learning_rate,
     )
-    criterion = nn.BCEWithLogitsLoss()
+    train_labels = dataset_labels(dataset)
+    if isinstance(train_dataset, Subset):
+        train_labels = train_labels[train_dataset.indices]
+    # Weight positives by the class ratio so an imbalanced set does not collapse to the majority class.
+    pos_weight = torch.tensor([(train_labels == 0).sum() / max((train_labels == 1).sum(), 1)], dtype=torch.float32)
+    criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight.to(resolved))
     history: dict[str, float] = {}
 
     for epoch in range(1, epochs + 1):
@@ -227,7 +254,11 @@ def train(
         freeze_backbone=freeze_backbone,
         epochs=epochs,
         input_size=INPUT_SIZE,
-        split={"method": "stratified_image_level", "validation_fraction": validation_fraction, "seed": seed},
+        split=(
+            {"method": "held_out_folder", "eval_dir": Path(eval_dir).name, "seed": seed}
+            if eval_dir is not None
+            else {"method": "stratified_image_level", "validation_fraction": validation_fraction, "seed": seed}
+        ),
         metrics=metrics,
         notes=(
             "Educational and research-only prototype. "
@@ -249,6 +280,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--n-synthetic", type=int, default=24, help="Images per class when using --synthetic.")
     parser.add_argument("--validation-fraction", type=float, default=0.2)
+    parser.add_argument("--eval-dir", type=Path, default=None, help="Held-out folder with negative/ and positive/ images.")
+    parser.add_argument("--augment", action="store_true", help="Random flips and small rotations during training.")
+    parser.add_argument("--unfreeze-last", type=int, default=0, help="With a frozen backbone, still fine-tune the last N feature blocks.")
     parser.add_argument("--unfreeze-backbone", action="store_true")
     parser.add_argument("--from-scratch", action="store_true", help="Do not load ImageNet backbone weights.")
     parser.add_argument("--output", type=Path, default=DEFAULT_CHECKPOINT)
@@ -272,6 +306,9 @@ def main() -> None:
         seed=args.seed,
         device=args.device,
         validation_fraction=args.validation_fraction,
+        eval_dir=args.eval_dir,
+        augment=args.augment,
+        unfreeze_last=args.unfreeze_last,
     )
 
 

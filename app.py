@@ -18,7 +18,7 @@ from meddetect.inference import apply_threshold, run_inference
 from meddetect.model import load_checkpoint
 from meddetect.preprocess import ImageLoadError, load_rgb_image
 
-PAGE_TITLE = "Medical Image Classification Prototype"
+PAGE_TITLE = "Breast Ultrasound Classifier"
 
 
 def _inject_styles() -> None:
@@ -89,7 +89,7 @@ def _source_from_widgets(samples: list[Path]) -> tuple[Image.Image | None, str |
     )
     sample_names = ["— none —"] + [path.name for path in samples]
     choice = st.selectbox(
-        "Or open a synthetic sample (no patient data)",
+        "Or open a sample breast ultrasound (BreastMNIST test set)",
         sample_names,
         index=0,
     )
@@ -109,7 +109,7 @@ def _source_from_widgets(samples: list[Path]) -> tuple[Image.Image | None, str |
 
 
 def _render_empty_state() -> None:
-    st.info("Upload an image or choose a synthetic sample to run the prototype.")
+    st.info("Upload a breast ultrasound image or choose a sample to run the prototype.")
     st.markdown(
         """
         **What this screen will show**
@@ -125,8 +125,8 @@ def main() -> None:
     st.set_page_config(page_title=PAGE_TITLE, page_icon="🧬", layout="wide")
     _inject_styles()
 
-    st.title("Medical Image Classification and Grad-CAM Prototype")
-    st.caption("Python · PyTorch · EfficientNet-B0 · Streamlit")
+    st.title("Breast Ultrasound Classifier with Grad-CAM")
+    st.caption("Python · PyTorch · EfficientNet-B0 · Streamlit · trained on BreastMNIST (MedMNIST v2)")
     st.markdown(f'<div class="disclaimer-banner">{DISCLAIMER}</div>', unsafe_allow_html=True)
 
     samples = _list_samples()
@@ -234,7 +234,8 @@ def main() -> None:
         )
         st.markdown(
             "Retrain on your own labeled folders with `python train.py --data-dir path/to/data`. "
-            "The bundled checkpoint is **synthetic-only** unless you replace it."
+            "The bundled checkpoint is trained on the BreastMNIST breast ultrasound training split "
+            "(546 images) and evaluated on its held-out 156-image test split."
         )
 
 

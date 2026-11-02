@@ -1,86 +1,87 @@
-# Medical Image Classification and Grad-CAM Prototype
+# Breast Ultrasound Classifier with Grad-CAM
 
+[![Live demo](https://img.shields.io/badge/Live%20demo-Hugging%20Face-FFD21E?logo=huggingface&logoColor=black)](https://huggingface.co/spaces/Mohsen-Fekri/breast-ultrasound-classifier)
 ![CI](https://github.com/Justin-Fekri/medical-image-cancer-detection-prototype/actions/workflows/ci.yml/badge.svg)
 ![Python](https://img.shields.io/badge/python-3.11+-blue)
 ![PyTorch](https://img.shields.io/badge/PyTorch-EfficientNet--B0-EE4C2C)
 ![Research only](https://img.shields.io/badge/status-research%20only-important)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-Educational and research-only CNN prototype. **This is not a diagnostic device** and must not be used to screen, diagnose, treat, or rule out cancer.
+An EfficientNet-B0 classifier that scores breast ultrasound images as **malignant** or **normal/benign**, with **Grad-CAM** heatmaps that show which regions drove each prediction. It is trained and evaluated on **BreastMNIST**, a public breast ultrasound benchmark from MedMNIST v2.
 
-The app takes a medical image, standardizes it to **224×224 RGB**, scores it with **EfficientNet-B0** (PyTorch), and shows a **sigmoid probability** against an **adjustable classification threshold**. **Grad-CAM** overlays highlight regions that influenced the score so a reviewer can inspect the decision.
+**[Try the live demo](https://huggingface.co/spaces/Mohsen-Fekri/breast-ultrasound-classifier)**: pick one of the sample scans or upload your own image.
 
-Read [DISCLAIMER.md](DISCLAIMER.md) before running anything.
+> Educational and research-only prototype. **It is not a diagnostic device** and must not be used to screen, diagnose, treat, or rule out cancer. See [DISCLAIMER.md](DISCLAIMER.md).
 
-![The workbench scoring a synthetic lesion sample: sigmoid probability 0.991 against a 0.50 review threshold, flagged for review, with the Grad-CAM overlay and class-activation heatmap beside it.](docs/gradcam-result.png)
+![The workbench flagging a malignant test-set scan for review, with the sigmoid probability, threshold, and Grad-CAM overlay.](docs/workbench.png)
 
-The screenshot above is the bundled synthetic checkpoint scoring `samples/synthetic_lesion_01.png`. Grad-CAM localizes to the generated lesion, which confirms the attribution path is wired correctly — it is **not** evidence that the network learned clinically meaningful features. The samples are generated, and the two classes were drawn to be easy to separate.
+## Results
 
+Evaluated once on the official **156-image BreastMNIST test split**, which the model never saw during training.
 
-## What you get
+| Metric (threshold 0.50) | Result |
+| --- | ---: |
+| ROC-AUC | **0.916** |
+| Accuracy | 0.872 |
+| Sensitivity (malignant recall) | 0.857 |
+| Specificity | 0.877 |
+| Precision | 0.720 |
+| F1 | 0.783 |
 
-- Streamlit workbench for upload + synthetic samples
-- EfficientNet-B0 binary head (`1` logit → sigmoid)
-- Adjustable review threshold (default `0.50`)
-- Grad-CAM heatmap and overlay
-- Training script for your own `negative/` / `positive/` folders
-- A bundled checkpoint trained **only on synthetic images** so the UI works out of the box
-- A deterministic stratified train/validation split with ROC-AUC, F1, sensitivity, and specificity
+Full run metadata is in [`evaluation/breastmnist_results.json`](evaluation/breastmnist_results.json).
 
-The bundled weights are **not** a clinical model. They exist so GitHub clones can run the interface immediately.
+**How it was trained**
 
-## Quick start
+- Data: 546 training images (147 malignant, 399 normal or benign), 224×224, official MedMNIST split
+- Model: ImageNet-initialized EfficientNet-B0 with a single-logit head; the last 3 feature blocks are fine-tuned, the rest stay frozen
+- Class imbalance: positive-class weight in the BCE loss (about 2.7×)
+- Augmentation: horizontal flips and rotations within ±10°
+- 10 epochs, Adam (lr 1e-3), batch size 16, seed 2026, CPU only
+
+## What the app does
+
+- Standardizes any upload to **224×224 RGB** with ImageNet normalization
+- Returns a **sigmoid probability** and compares it with an **adjustable review threshold**, so a reviewer can trade sensitivity for specificity without re-running the model
+- Draws a **Grad-CAM** overlay and heatmap from the last convolutional block
+- Ships six held-out test scans in `samples/` so the demo works with one click
+
+![Grad-CAM overlay and class-activation heatmap for a malignant test scan.](docs/gradcam-result.png)
+
+## Run locally
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-streamlit run app.py --server.port 43127 --server.address 0.0.0.0
+streamlit run app.py --server.port 43127
 ```
 
-Open `http://127.0.0.1:43127`. Upload a PNG/JPEG (or pick a file under `samples/`). Move the **Classification threshold** slider to see how the review flag changes without re-running the network.
+Open `http://127.0.0.1:43127`. A CPU is enough.
 
-![The workbench before an image is loaded: reviewer controls with the classification threshold, model summary, and the research-only banner.](docs/workbench.png)
-
-
-CPU is enough. A GPU is optional (`python train.py --device cuda`).
-
-## Train on your own images
-
-```
-data/
-  negative/   # or benign/
-  positive/   # or malignant/
-```
+Or with Docker:
 
 ```bash
-python train.py --data-dir data --epochs 10 --output checkpoints/prototype_efficientnet_b0.pt
+docker build -t breast-us-classifier .
+docker run -p 8501:8501 breast-us-classifier
 ```
 
-Regenerate the synthetic demo checkpoint:
+## Reproduce the training run
 
 ```bash
-python train.py --synthetic --epochs 8 --n-synthetic 24 --output checkpoints/prototype_efficientnet_b0.pt
+# 1. Download breastmnist_224.npz (31 MB) from https://zenodo.org/records/10519652
+# 2. Export it to negative/ and positive/ folders
+python scripts/prepare_breastmnist.py breastmnist_224.npz --output data/breastmnist
+
+# 3. Train on the train split, evaluate on the held-out test split
+python train.py \
+  --data-dir data/breastmnist/train \
+  --eval-dir data/breastmnist/test \
+  --augment --unfreeze-last 3 \
+  --epochs 10 --batch-size 16 --lr 1e-3 --seed 2026 \
+  --output checkpoints/prototype_efficientnet_b0.pt
 ```
 
-By default the EfficientNet-B0 backbone is initialized from ImageNet and frozen; only the binary head is trained. Pass `--unfreeze-backbone` to fine-tune the convolutional features.
-
-The training command reserves 20% of each class for image-level validation. Checkpoint metadata records the split seed and the final validation metrics. For real medical datasets, replace this with a patient-level split so images from the same person cannot appear in both training and validation.
-
-Example reproducible synthetic validation run (`seed=2025`, `epochs=8`, `n_synthetic=24` per class):
-
-| Setting | Result |
-| --- | ---: |
-| Training images | 38 |
-| Validation images | 10 |
-| Validation ROC-AUC | 1.000 |
-| Validation F1 | 1.000 |
-| Validation sensitivity | 1.000 |
-| Validation specificity | 1.000 |
-
-The generated positive and negative images are intentionally easy to separate. These scores confirm that training, checkpointing, inference, and evaluation work together. They are not medical-performance claims.
-
-The complete run metadata is committed in `evaluation/synthetic_results.json`. The bundled checkpoint remains a UI demonstration artifact and should be replaced for any real experiment.
+`train.py` also accepts any folder with `negative/` and `positive/` subfolders. Without `--eval-dir` it makes a stratified 80/20 split. Pass `--unfreeze-backbone` to fine-tune every layer.
 
 ## Tests
 
@@ -88,35 +89,36 @@ The complete run metadata is committed in `evaluation/synthetic_results.json`. T
 python -m pytest -q
 ```
 
+The tests cover preprocessing, the binary head, threshold logic, Grad-CAM shapes, the train/validation split, and the metric calculations.
+
 ## Project layout
 
 ```
-app.py                 Streamlit interface
-train.py               Binary training entry point
-meddetect/             Model, preprocess, Grad-CAM, inference
-samples/               Synthetic PNGs (no patient data)
-checkpoints/           Prototype EfficientNet-B0 weights
-tests/                 Preprocess, threshold, Grad-CAM checks
+app.py                         Streamlit workbench
+train.py                       Training and evaluation entry point
+scripts/prepare_breastmnist.py Export the MedMNIST .npz to image folders
+meddetect/                     Model, preprocessing, Grad-CAM, inference
+samples/                       Six held-out BreastMNIST test scans
+checkpoints/                   Trained EfficientNet-B0 weights
+evaluation/                    Test-set metrics for the committed checkpoint
+tests/                         Unit tests
 ```
-
-## Design notes
-
-| Piece | Choice |
-| --- | --- |
-| Architecture | EfficientNet-B0 (torchvision) |
-| Input | 224×224 RGB, ImageNet mean/std |
-| Output | Single logit + sigmoid probability |
-| Decision | `probability >= threshold` |
-| Interpretability | Grad-CAM on the last feature block |
 
 ## Limitations
 
-- The bundled checkpoint is trained and validated only on generated images with deliberately different visual patterns.
-- Synthetic validation scores show that the code path works. They do not estimate performance on clinical images.
-- The repository does not include an external test set, patient-level split, demographic subgroup analysis, or clinical review.
-- Grad-CAM indicates which pixels influenced the network. It does not prove that the model learned medically relevant features.
-- A real experiment must state the dataset license, inclusion criteria, class balance, preprocessing, patient-level split, and confidence intervals.
+- BreastMNIST has only 780 images from a single hospital (the BUSI dataset). Results on other scanners, sites, or populations are unknown.
+- The splits are image-level. BUSI does not publish patient identifiers, so images from one patient could appear in more than one split.
+- Probabilities are not calibrated, so a score of 0.99 is not a 99% chance of malignancy.
+- At the default threshold the model misses about 1 in 7 malignant test images. A screening tool would need a much lower miss rate and external validation.
+- Grad-CAM shows which pixels influenced the score. It does not prove the model learned clinically meaningful features.
+
+## Data and citation
+
+BreastMNIST is released under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). If you use it, cite:
+
+- Yang, J., Shi, R., Wei, D. et al. MedMNIST v2: A large-scale lightweight benchmark for 2D and 3D biomedical image classification. *Scientific Data* 10, 41 (2023).
+- Al-Dhabyani, W., Gomaa, M., Khaled, H., Fahmy, A. Dataset of breast ultrasound images. *Data in Brief* 28, 104863 (2020).
 
 ## License
 
-MIT. The license does not grant permission to use this software as a medical device.
+MIT for the code. The license does not grant permission to use this software as a medical device.
