@@ -68,6 +68,10 @@
   canvas { width: 100%; aspect-ratio: 1; border-radius: 10px; background: #000; display: block; }
   figcaption { color: var(--muted); font-size: 12px; text-align: center; margin-top: 6px; }
   .status { color: var(--muted); font-size: 13px; margin-top: 10px; min-height: 20px; }
+  .about { margin-top: 20px; }
+  .about p { margin: 0 0 10px; max-width: 75ch; }
+  .about p:last-child { margin-bottom: 0; }
+  .about a { color: var(--accent); }
   footer { color: var(--muted); font-size: 13px; margin-top: 28px; }
   footer a { color: var(--accent); }
   @media (max-width: 860px) {
@@ -81,53 +85,61 @@
 <div class="wrap">
   <header>
     <h1>Breast Ultrasound Classifier</h1>
-    <p>EfficientNet-B0 with Grad-CAM explanations, trained on BreastMNIST. The model runs entirely in your browser; images never leave your device.</p>
+    <p>A small project of mine: an EfficientNet-B0 trained on real breast ultrasound scans, with Grad-CAM to show where it's looking. It all runs in your browser, so any image you try stays on your computer.</p>
     <div class="links">
-      <a class="chip" href="https://github.com/Justin-Fekri/medical-image-cancer-detection-prototype">Source code on GitHub</a>
-      <a class="chip" href="https://github.com/Justin-Fekri/medical-image-cancer-detection-prototype/blob/main/evaluation/breastmnist_results.json">Evaluation details</a>
-      <a class="chip" href="https://medmnist.com/">BreastMNIST dataset</a>
+      <a class="chip" href="https://github.com/Justin-Fekri/medical-image-cancer-detection-prototype">Code on GitHub</a>
+      <a class="chip" href="https://github.com/Justin-Fekri/medical-image-cancer-detection-prototype/blob/main/evaluation/breastmnist_results.json">Full test results</a>
+      <a class="chip" href="https://medmnist.com/">About the dataset</a>
     </div>
   </header>
 
-  <section class="stats" aria-label="Held-out test results">
+  <p class="hint" style="margin-top:22px">Scores on the 156-image test set, which the model never saw during training:</p>
+  <section class="stats" style="margin-top:8px" aria-label="Test results">
     <div class="stat"><b>0.916</b><span>Test ROC-AUC</span></div>
     <div class="stat"><b>87.2%</b><span>Test accuracy</span></div>
     <div class="stat"><b>85.7%</b><span>Sensitivity</span></div>
     <div class="stat"><b>87.7%</b><span>Specificity</span></div>
   </section>
 
-  <div class="notice">Research prototype, not a diagnostic device. Do not use these scores to screen for, diagnose, or rule out cancer.</div>
+  <div class="notice">This is a student project, not a medical tool. Please don't use it to make decisions about real patients.</div>
 
   <div class="grid">
     <section class="card">
-      <h2>1. Choose an image</h2>
+      <h2>Pick a scan</h2>
       <div class="thumbs" id="thumbs"></div>
-      <label class="upload">Or upload your own image (PNG or JPG)
+      <label class="upload">Or try your own image
         <input type="file" id="file" accept="image/*">
       </label>
       <label class="th" for="threshold">Review threshold <span id="thv">0.50</span></label>
       <input type="range" id="threshold" min="0.05" max="0.95" step="0.05" value="0.5">
-      <p class="hint">Lower thresholds flag more scans (higher sensitivity); higher thresholds flag fewer (higher specificity).</p>
+      <p class="hint">Move it down and the model flags more scans (catches more cancers, more false alarms). Move it up and it flags fewer.</p>
     </section>
 
     <section class="card" aria-live="polite">
-      <h2>2. Result</h2>
-      <span class="verdict idle" id="verdict">Loading model…</span>
+      <h2>What the model thinks</h2>
+      <span class="verdict idle" id="verdict">Loading the model…</span>
       <div class="prob" id="prob">–</div>
       <div class="meter"><i id="bar"></i><u id="mark" style="left:50%"></u></div>
-      <p class="hint">Model probability that the scan is malignant. Uncalibrated score, not a diagnosis.</p>
+      <p class="hint">How sure the model is that the scan is malignant. It isn't calibrated, so treat it as a score rather than a real probability.</p>
       <div class="images">
-        <figure><canvas id="c-input" width="224" height="224"></canvas><figcaption>Input, 224×224</figcaption></figure>
+        <figure><canvas id="c-input" width="224" height="224"></canvas><figcaption>Input</figcaption></figure>
         <figure><canvas id="c-overlay" width="224" height="224"></canvas><figcaption>Grad-CAM overlay</figcaption></figure>
-        <figure><canvas id="c-heat" width="224" height="224"></canvas><figcaption id="heat-cap">Activation heatmap</figcaption></figure>
+        <figure><canvas id="c-heat" width="224" height="224"></canvas><figcaption id="heat-cap">Heatmap</figcaption></figure>
       </div>
       <div class="status" id="status"></div>
     </section>
   </div>
 
+  <section class="card about">
+    <h2>How it works</h2>
+    <p>I fine-tuned an ImageNet EfficientNet-B0 on the 546 training images in BreastMNIST, a 224×224 version of the BUSI breast ultrasound dataset. To keep training manageable on a laptop CPU I froze the early layers and only trained the last three blocks.</p>
+    <p>The browser can't run backprop, so Grad-CAM had to be done differently here. Because the network ends with average pooling and a single linear layer, the Grad-CAM weights are just that layer's weights, so I compute the heatmap in the forward pass and export it with the model to ONNX. On clearly benign scans the heatmap is empty, since nothing in the image pushes the score toward malignant.</p>
+    <p>It's a small dataset from a single hospital, and the model still misses about 1 in 7 malignant scans, so take the numbers for what they are. More detail is in the <a href="https://github.com/Justin-Fekri/medical-image-cancer-detection-prototype#readme">README</a>.</p>
+  </section>
+
   <footer>
-    Built by Mohsen Fekri with PyTorch and ONNX Runtime Web. Test metrics are from the official 156-image BreastMNIST test split.
-    Data: <a href="https://zenodo.org/records/10519652">MedMNIST v2</a> (CC BY 4.0), derived from the BUSI dataset (Al-Dhabyani et al., 2020).
+    Made by <a href="https://github.com/Justin-Fekri">Mohsen Fekri</a>, York University.
+    Data: <a href="https://zenodo.org/records/10519652">MedMNIST v2</a> (CC BY 4.0), from the BUSI dataset (Al-Dhabyani et al., 2020).
   </footer>
 </div>
 
@@ -189,7 +201,7 @@ function drawCam(pixels, camData, dims) {
   let lo = Infinity, hi = -Infinity;
   for (const v of camData) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
   // Grad-CAM keeps only evidence for the malignant class, so a clearly benign scan can produce an empty map.
-  $("heat-cap").textContent = hi > 0 ? "Activation heatmap" : "No region pushed the score toward malignant";
+  $("heat-cap").textContent = hi > 0 ? "Heatmap" : "Nothing here pointed to malignant";
   const norm = Array.from(camData, (v) => (hi > lo ? (v - lo) / (hi - lo) : 0));
   const up = upsample(norm, h, w, SIZE);
   const heat = new ImageData(SIZE, SIZE), over = new ImageData(SIZE, SIZE);
@@ -210,7 +222,7 @@ function render() {
   if (!last) return;
   const p = last.prob, flagged = p >= t, v = $("verdict");
   v.className = `verdict ${flagged ? "flag" : "clear"}`;
-  v.textContent = flagged ? "Above threshold: flagged for review" : "Below threshold: not flagged";
+  v.textContent = flagged ? "Flagged for review" : "Not flagged";
   $("prob").textContent = p > 0.999 ? "> 0.999" : p < 0.001 ? "< 0.001" : p.toFixed(3);
   $("bar").style.width = `${p * 100}%`;
 }
@@ -224,7 +236,7 @@ async function score(img, name) {
   last = { prob: 1 / (1 + Math.exp(-logit)) };
   drawCam(pixels, out.cam.data, out.cam.dims);
   render();
-  $("status").textContent = `${name} · logit ${logit.toFixed(2)} · scored in ${Math.round(performance.now() - started)} ms on this device`;
+  $("status").textContent = `${name} · logit ${logit.toFixed(2)} · ${Math.round(performance.now() - started)} ms`;
 }
 
 function loadImage(src) {
@@ -238,7 +250,7 @@ function loadImage(src) {
 
 function select(button, file, label) {
   document.querySelectorAll(".thumb").forEach((b) => b.setAttribute("aria-pressed", String(b === button)));
-  loadImage(`samples/${file}`).then((img) => score(img, `Sample ${file} (labelled ${label.toLowerCase()})`));
+  loadImage(`samples/${file}`).then((img) => score(img, `${file} (labelled ${label.toLowerCase()})`));
 }
 
 SAMPLES.forEach(([file, label], i) => {

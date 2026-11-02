@@ -17,6 +17,6 @@ POSITIVE_LABEL = "Above threshold (flagged for review)"
 NEGATIVE_LABEL = "Below threshold (not flagged)"
 
 DISCLAIMER = (
-    "Educational and research-only prototype — not a diagnostic device. "
-    "Do not use these scores for screening, diagnosis, or treatment decisions."
+    "Student research project, not a medical tool. "
+    "Please don't use these scores to make decisions about real patients."
 )

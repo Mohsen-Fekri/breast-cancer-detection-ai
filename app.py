@@ -87,7 +87,7 @@ def _source_from_widgets(samples: list[Path]) -> tuple[Image.Image | None, str |
         type=["png", "jpg", "jpeg", "webp", "bmp", "tif", "tiff"],
         help="The image is converted to 224×224 RGB before scoring. Do not upload identifiable patient photos to public demos.",
     )
-    sample_names = ["— none —"] + [path.name for path in samples]
+    sample_names = ["None"] + [path.name for path in samples]
     choice = st.selectbox(
         "Or open a sample breast ultrasound (BreastMNIST test set)",
         sample_names,
@@ -101,7 +101,7 @@ def _source_from_widgets(samples: list[Path]) -> tuple[Image.Image | None, str |
             st.error(str(exc))
             return None, None
 
-    if choice != "— none —":
+    if choice != "None":
         path = SAMPLES_DIR / choice
         return load_rgb_image(path), path.name
 
