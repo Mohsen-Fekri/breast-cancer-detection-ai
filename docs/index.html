@@ -87,8 +87,8 @@
     <h1>Breast Ultrasound Classifier</h1>
     <p>A small project of mine: an EfficientNet-B0 trained on real breast ultrasound scans, with Grad-CAM to show where it's looking. It all runs in your browser, so any image you try stays on your computer.</p>
     <div class="links">
-      <a class="chip" href="https://github.com/Justin-Fekri/medical-image-cancer-detection-prototype">Code on GitHub</a>
-      <a class="chip" href="https://github.com/Justin-Fekri/medical-image-cancer-detection-prototype/blob/main/evaluation/breastmnist_results.json">Full test results</a>
+      <a class="chip" href="https://github.com/Mohsen-Fekri/medical-image-cancer-detection-prototype">Code on GitHub</a>
+      <a class="chip" href="https://github.com/Mohsen-Fekri/medical-image-cancer-detection-prototype/blob/main/evaluation/breastmnist_results.json">Full test results</a>
       <a class="chip" href="https://medmnist.com/">About the dataset</a>
     </div>
   </header>
@@ -134,11 +134,11 @@
     <h2>How it works</h2>
     <p>I fine-tuned an ImageNet EfficientNet-B0 on the 546 training images in BreastMNIST, a 224×224 version of the BUSI breast ultrasound dataset. To keep training manageable on a laptop CPU I froze the early layers and only trained the last three blocks.</p>
     <p>The browser can't run backprop, so Grad-CAM had to be done differently here. Because the network ends with average pooling and a single linear layer, the Grad-CAM weights are just that layer's weights, so I compute the heatmap in the forward pass and export it with the model to ONNX. On clearly benign scans the heatmap is empty, since nothing in the image pushes the score toward malignant.</p>
-    <p>It's a small dataset from a single hospital, and the model still misses about 1 in 7 malignant scans, so take the numbers for what they are. More detail is in the <a href="https://github.com/Justin-Fekri/medical-image-cancer-detection-prototype#readme">README</a>.</p>
+    <p>It's a small dataset from a single hospital, and the model still misses about 1 in 7 malignant scans, so take the numbers for what they are. More detail is in the <a href="https://github.com/Mohsen-Fekri/medical-image-cancer-detection-prototype#readme">README</a>.</p>
   </section>
 
   <footer>
-    Made by <a href="https://github.com/Justin-Fekri">Mohsen Fekri</a>, York University.
+    Made by <a href="https://github.com/Mohsen-Fekri">Mohsen Fekri</a>, York University.
     Data: <a href="https://zenodo.org/records/10519652">MedMNIST v2</a> (CC BY 4.0), from the BUSI dataset (Al-Dhabyani et al., 2020).
   </footer>
 </div>
