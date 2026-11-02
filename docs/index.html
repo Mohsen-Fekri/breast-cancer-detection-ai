@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Breast Ultrasound Classifier</title>
+<meta name="description" content="EfficientNet-B0 breast ultrasound classifier with Grad-CAM, running in your browser. Trained on BreastMNIST, 0.916 test ROC-AUC.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f6f8fa; --surface: #ffffff; --border: #e2e8f0; --text: #0f172a; --muted: #5b6474;
+    --accent: #0f766e; --accent-soft: #ccfbf1; --flag: #b42318; --flag-soft: #fef3f2;
+    --ok: #067647; --ok-soft: #ecfdf3; --warn-bg: #fffaeb; --warn-border: #fedf89; --warn-text: #93370d;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0b1120; --surface: #111827; --border: #1f2a3d; --text: #e5e7eb; --muted: #9aa4b2;
+      --accent: #2dd4bf; --accent-soft: #134e4a; --flag: #fda29b; --flag-soft: #3a1513;
+      --ok: #75e0a7; --ok-soft: #0c2a1c; --warn-bg: #2a1f06; --warn-border: #6b4e0a; --warn-text: #fec84b;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0b1120; --surface: #111827; --border: #1f2a3d; --text: #e5e7eb; --muted: #9aa4b2;
+    --accent: #2dd4bf; --accent-soft: #134e4a; --flag: #fda29b; --flag-soft: #3a1513;
+    --ok: #75e0a7; --ok-soft: #0c2a1c; --warn-bg: #2a1f06; --warn-border: #6b4e0a; --warn-text: #fec84b;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.55 Inter, system-ui, sans-serif; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 32px 16px 56px; }
+  header h1 { font-size: clamp(26px, 4vw, 36px); margin: 0 0 6px; letter-spacing: -0.02em; }
+  header p { margin: 0; color: var(--muted); }
+  .links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border: 1px solid var(--border);
+          border-radius: 999px; background: var(--surface); color: var(--text); text-decoration: none; font-size: 13px; font-weight: 500; }
+  .chip:hover { border-color: var(--accent); }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 24px 0; }
+  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+  .stat b { display: block; font-size: 22px; letter-spacing: -0.01em; }
+  .stat span { color: var(--muted); font-size: 13px; }
+  .notice { background: var(--warn-bg); border: 1px solid var(--warn-border); color: var(--warn-text);
+            border-radius: 10px; padding: 10px 14px; font-size: 14px; font-weight: 500; }
+  .grid { display: grid; grid-template-columns: 340px 1fr; gap: 20px; margin-top: 20px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px; min-width: 0; }
+  .card h2 { font-size: 15px; margin: 0 0 12px; }
+  .thumbs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .thumb { position: relative; padding: 0; border: 2px solid transparent; border-radius: 8px; overflow: hidden; cursor: pointer; background: none; }
+  .thumb img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; }
+  .thumb small { position: absolute; left: 4px; bottom: 4px; padding: 1px 6px; border-radius: 4px; background: rgba(15,23,42,.75); color: #fff; font-size: 11px; }
+  .thumb[aria-pressed="true"] { border-color: var(--accent); }
+  .thumb:focus-visible, .upload:focus-within, input[type=range]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .upload { display: block; margin-top: 14px; padding: 14px; border: 1.5px dashed var(--border); border-radius: 10px; text-align: center; color: var(--muted); cursor: pointer; font-size: 14px; }
+  .upload input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+  .upload:hover { border-color: var(--accent); color: var(--text); }
+  label.th { display: flex; justify-content: space-between; margin-top: 18px; font-weight: 600; font-size: 14px; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .hint { color: var(--muted); font-size: 13px; margin: 4px 0 0; }
+  .verdict { display: inline-block; padding: 4px 12px; border-radius: 999px; font-weight: 600; font-size: 14px; }
+  .verdict.flag { background: var(--flag-soft); color: var(--flag); }
+  .verdict.clear { background: var(--ok-soft); color: var(--ok); }
+  .verdict.idle { background: var(--accent-soft); color: var(--accent); }
+  .meter { height: 8px; border-radius: 99px; background: var(--border); position: relative; margin: 14px 0 6px; }
+  .meter i { position: absolute; inset: 0 auto 0 0; border-radius: 99px; background: var(--accent); width: 0; transition: width .3s; }
+  .meter u { position: absolute; top: -4px; width: 2px; height: 16px; background: var(--text); }
+  .prob { font-size: 34px; font-weight: 700; letter-spacing: -0.02em; margin-top: 10px; }
+  .images { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 16px; }
+  figure { margin: 0; }
+  canvas { width: 100%; aspect-ratio: 1; border-radius: 10px; background: #000; display: block; }
+  figcaption { color: var(--muted); font-size: 12px; text-align: center; margin-top: 6px; }
+  .status { color: var(--muted); font-size: 13px; margin-top: 10px; min-height: 20px; }
+  footer { color: var(--muted); font-size: 13px; margin-top: 28px; }
+  footer a { color: var(--accent); }
+  @media (max-width: 860px) {
+    .grid { grid-template-columns: 1fr; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 480px) { .images { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Breast Ultrasound Classifier</h1>
+    <p>EfficientNet-B0 with Grad-CAM explanations, trained on BreastMNIST. The model runs entirely in your browser; images never leave your device.</p>
+    <div class="links">
+      <a class="chip" href="https://github.com/Justin-Fekri/medical-image-cancer-detection-prototype">Source code on GitHub</a>
+      <a class="chip" href="https://github.com/Justin-Fekri/medical-image-cancer-detection-prototype/blob/main/evaluation/breastmnist_results.json">Evaluation details</a>
+      <a class="chip" href="https://medmnist.com/">BreastMNIST dataset</a>
+    </div>
+  </header>
+
+  <section class="stats" aria-label="Held-out test results">
+    <div class="stat"><b>0.916</b><span>Test ROC-AUC</span></div>
+    <div class="stat"><b>87.2%</b><span>Test accuracy</span></div>
+    <div class="stat"><b>85.7%</b><span>Sensitivity</span></div>
+    <div class="stat"><b>87.7%</b><span>Specificity</span></div>
+  </section>
+
+  <div class="notice">Research prototype, not a diagnostic device. Do not use these scores to screen for, diagnose, or rule out cancer.</div>
+
+  <div class="grid">
+    <section class="card">
+      <h2>1. Choose an image</h2>
+      <div class="thumbs" id="thumbs"></div>
+      <label class="upload">Or upload your own image (PNG or JPG)
+        <input type="file" id="file" accept="image/*">
+      </label>
+      <label class="th" for="threshold">Review threshold <span id="thv">0.50</span></label>
+      <input type="range" id="threshold" min="0.05" max="0.95" step="0.05" value="0.5">
+      <p class="hint">Lower thresholds flag more scans (higher sensitivity); higher thresholds flag fewer (higher specificity).</p>
+    </section>
+
+    <section class="card" aria-live="polite">
+      <h2>2. Result</h2>
+      <span class="verdict idle" id="verdict">Loading model…</span>
+      <div class="prob" id="prob">–</div>
+      <div class="meter"><i id="bar"></i><u id="mark" style="left:50%"></u></div>
+      <p class="hint">Model probability that the scan is malignant. Uncalibrated score, not a diagnosis.</p>
+      <div class="images">
+        <figure><canvas id="c-input" width="224" height="224"></canvas><figcaption>Input, 224×224</figcaption></figure>
+        <figure><canvas id="c-overlay" width="224" height="224"></canvas><figcaption>Grad-CAM overlay</figcaption></figure>
+        <figure><canvas id="c-heat" width="224" height="224"></canvas><figcaption id="heat-cap">Activation heatmap</figcaption></figure>
+      </div>
+      <div class="status" id="status"></div>
+    </section>
+  </div>
+
+  <footer>
+    Built by Mohsen Fekri with PyTorch and ONNX Runtime Web. Test metrics are from the official 156-image BreastMNIST test split.
+    Data: <a href="https://zenodo.org/records/10519652">MedMNIST v2</a> (CC BY 4.0), derived from the BUSI dataset (Al-Dhabyani et al., 2020).
+  </footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/ort.min.js"></script>
+<script>
+const SAMPLES = [
+  ["malignant_01.png", "Malignant"], ["malignant_02.png", "Malignant"], ["malignant_03.png", "Malignant"],
+  ["benign_or_normal_01.png", "Benign/normal"], ["benign_or_normal_02.png", "Benign/normal"], ["benign_or_normal_03.png", "Benign/normal"],
+];
+const MEAN = [0.485, 0.456, 0.406], STD = [0.229, 0.224, 0.225], SIZE = 224;
+const $ = (id) => document.getElementById(id);
+let session = null, last = null;
+
+ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/";
+
+// Polynomial fit of the Turbo colormap (Mikhailov, Google 2019), the same map the Python app uses.
+function turbo(x) {
+  x = Math.min(1, Math.max(0, x));
+  const r = 0.13572138 + x * (4.6153926 + x * (-42.66032258 + x * (132.13108234 + x * (-152.94239396 + x * 59.28637943))));
+  const g = 0.09140261 + x * (2.19418839 + x * (4.84296658 + x * (-14.18503333 + x * (4.27729857 + x * 2.82956604))));
+  const b = 0.1066733 + x * (12.64194608 + x * (-60.58204836 + x * (110.36276771 + x * (-89.90310912 + x * 27.34824973))));
+  return [r, g, b].map((v) => Math.round(255 * Math.min(1, Math.max(0, v))));
+}
+
+// Bilinear upsampling with align_corners=False, matching torch.nn.functional.interpolate.
+function upsample(cam, h, w, out) {
+  const res = new Float32Array(out * out);
+  for (let y = 0; y < out; y++) {
+    const sy = Math.max(0, (y + 0.5) * h / out - 0.5), y0 = Math.floor(sy), y1 = Math.min(h - 1, y0 + 1), fy = sy - y0;
+    for (let x = 0; x < out; x++) {
+      const sx = Math.max(0, (x + 0.5) * w / out - 0.5), x0 = Math.floor(sx), x1 = Math.min(w - 1, x0 + 1), fx = sx - x0;
+      const top = cam[y0 * w + x0] * (1 - fx) + cam[y0 * w + x1] * fx;
+      const bot = cam[y1 * w + x0] * (1 - fx) + cam[y1 * w + x1] * fx;
+      res[y * out + x] = top * (1 - fy) + bot * fy;
+    }
+  }
+  return res;
+}
+
+function drawInput(img) {
+  const ctx = $("c-input").getContext("2d", { willReadFrequently: true });
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0, 0, SIZE, SIZE);
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(img, 0, 0, SIZE, SIZE);
+  return ctx.getImageData(0, 0, SIZE, SIZE);
+}
+
+function toTensor(pixels) {
+  const data = new Float32Array(3 * SIZE * SIZE);
+  for (let i = 0; i < SIZE * SIZE; i++) {
+    for (let c = 0; c < 3; c++) data[c * SIZE * SIZE + i] = (pixels.data[i * 4 + c] / 255 - MEAN[c]) / STD[c];
+  }
+  return new ort.Tensor("float32", data, [1, 3, SIZE, SIZE]);
+}
+
+function drawCam(pixels, camData, dims) {
+  const [h, w] = dims.slice(-2);
+  let lo = Infinity, hi = -Infinity;
+  for (const v of camData) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
+  // Grad-CAM keeps only evidence for the malignant class, so a clearly benign scan can produce an empty map.
+  $("heat-cap").textContent = hi > 0 ? "Activation heatmap" : "No region pushed the score toward malignant";
+  const norm = Array.from(camData, (v) => (hi > lo ? (v - lo) / (hi - lo) : 0));
+  const up = upsample(norm, h, w, SIZE);
+  const heat = new ImageData(SIZE, SIZE), over = new ImageData(SIZE, SIZE);
+  for (let i = 0; i < SIZE * SIZE; i++) {
+    const [r, g, b] = turbo(up[i]);
+    heat.data.set([r, g, b, 255], i * 4);
+    const a = 0.45, p = pixels.data;
+    over.data.set([(1 - a) * p[i * 4] + a * r, (1 - a) * p[i * 4 + 1] + a * g, (1 - a) * p[i * 4 + 2] + a * b, 255], i * 4);
+  }
+  $("c-heat").getContext("2d").putImageData(heat, 0, 0);
+  $("c-overlay").getContext("2d").putImageData(over, 0, 0);
+}
+
+function render() {
+  const t = parseFloat($("threshold").value);
+  $("thv").textContent = t.toFixed(2);
+  $("mark").style.left = `${t * 100}%`;
+  if (!last) return;
+  const p = last.prob, flagged = p >= t, v = $("verdict");
+  v.className = `verdict ${flagged ? "flag" : "clear"}`;
+  v.textContent = flagged ? "Above threshold: flagged for review" : "Below threshold: not flagged";
+  $("prob").textContent = p > 0.999 ? "> 0.999" : p < 0.001 ? "< 0.001" : p.toFixed(3);
+  $("bar").style.width = `${p * 100}%`;
+}
+
+async function score(img, name) {
+  if (!session) return;
+  const started = performance.now();
+  const pixels = drawInput(img);
+  const out = await session.run({ image: toTensor(pixels) });
+  const logit = out.logit.data[0];
+  last = { prob: 1 / (1 + Math.exp(-logit)) };
+  drawCam(pixels, out.cam.data, out.cam.dims);
+  render();
+  $("status").textContent = `${name} · logit ${logit.toFixed(2)} · scored in ${Math.round(performance.now() - started)} ms on this device`;
+}
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("Could not read that image."));
+    img.src = src;
+  });
+}
+
+function select(button, file, label) {
+  document.querySelectorAll(".thumb").forEach((b) => b.setAttribute("aria-pressed", String(b === button)));
+  loadImage(`samples/${file}`).then((img) => score(img, `Sample ${file} (labelled ${label.toLowerCase()})`));
+}
+
+SAMPLES.forEach(([file, label], i) => {
+  const b = document.createElement("button");
+  b.className = "thumb";
+  b.setAttribute("aria-pressed", "false");
+  b.setAttribute("aria-label", `Sample ${i + 1}, labelled ${label}`);
+  b.innerHTML = `<img src="samples/${file}" alt=""><small>${label}</small>`;
+  b.onclick = () => select(b, file, label);
+  $("thumbs").appendChild(b);
+});
+
+$("threshold").addEventListener("input", render);
+$("file").addEventListener("change", async (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const url = URL.createObjectURL(f);
+  try {
+    document.querySelectorAll(".thumb").forEach((b) => b.setAttribute("aria-pressed", "false"));
+    await score(await loadImage(url), f.name);
+  } catch (err) {
+    $("status").textContent = err.message;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+});
+
+(async () => {
+  try {
+    session = await ort.InferenceSession.create("model.onnx", { executionProviders: ["wasm"] });
+    $("verdict").textContent = "Ready";
+    select(document.querySelector(".thumb"), SAMPLES[0][0], SAMPLES[0][1]);
+  } catch (err) {
+    $("verdict").textContent = "Model failed to load";
+    $("status").textContent = String(err);
+  }
+})();
+render();
+</script>
+</body>
+</html>

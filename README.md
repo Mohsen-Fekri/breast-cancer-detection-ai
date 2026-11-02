@@ -1,6 +1,6 @@
 # Breast Ultrasound Classifier with Grad-CAM
 
-[![Live demo](https://img.shields.io/badge/Live%20demo-Hugging%20Face-FFD21E?logo=huggingface&logoColor=black)](https://huggingface.co/spaces/Mohsen-Fekri/breast-ultrasound-classifier)
+[![Live demo](https://img.shields.io/badge/Live%20demo-try%20it%20in%20your%20browser-0F766E)](https://justin-fekri.github.io/medical-image-cancer-detection-prototype/)
 ![CI](https://github.com/Justin-Fekri/medical-image-cancer-detection-prototype/actions/workflows/ci.yml/badge.svg)
 ![Python](https://img.shields.io/badge/python-3.11+-blue)
 ![PyTorch](https://img.shields.io/badge/PyTorch-EfficientNet--B0-EE4C2C)
@@ -9,7 +9,7 @@
 
 An EfficientNet-B0 classifier that scores breast ultrasound images as **malignant** or **normal/benign**, with **Grad-CAM** heatmaps that show which regions drove each prediction. It is trained and evaluated on **BreastMNIST**, a public breast ultrasound benchmark from MedMNIST v2.
 
-**[Try the live demo](https://huggingface.co/spaces/Mohsen-Fekri/breast-ultrasound-classifier)**: pick one of the sample scans or upload your own image.
+**[Try the live demo](https://justin-fekri.github.io/medical-image-cancer-detection-prototype/)**: pick a sample scan or upload your own. The model runs in your browser with ONNX Runtime Web, so nothing is uploaded to a server.
 
 > Educational and research-only prototype. **It is not a diagnostic device** and must not be used to screen, diagnose, treat, or rule out cancer. See [DISCLAIMER.md](DISCLAIMER.md).
 
@@ -58,6 +58,8 @@ streamlit run app.py --server.port 43127
 
 Open `http://127.0.0.1:43127`. A CPU is enough.
 
+The browser demo in `docs/` is the same model exported with `python -m scripts.export_onnx`. The export computes Grad-CAM in the forward pass: after global average pooling and one linear layer, the Grad-CAM weights are the head weights, so the browser needs no gradients. Serve it locally with `python -m http.server --directory docs`.
+
 Or with Docker:
 
 ```bash
@@ -97,6 +99,8 @@ The tests cover preprocessing, the binary head, threshold logic, Grad-CAM shapes
 app.py                         Streamlit workbench
 train.py                       Training and evaluation entry point
 scripts/prepare_breastmnist.py Export the MedMNIST .npz to image folders
+scripts/export_onnx.py         Export the checkpoint for the browser demo
+docs/                          Browser demo (GitHub Pages) and screenshots
 meddetect/                     Model, preprocessing, Grad-CAM, inference
 samples/                       Six held-out BreastMNIST test scans
 checkpoints/                   Trained EfficientNet-B0 weights
