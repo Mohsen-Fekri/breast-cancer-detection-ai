@@ -18,7 +18,7 @@ from meddetect.inference import apply_threshold, run_inference
 from meddetect.model import load_checkpoint
 from meddetect.preprocess import ImageLoadError, load_rgb_image
 
-PAGE_TITLE = "Breast Ultrasound Classifier"
+PAGE_TITLE = "Breast Cancer Detection AI"
 
 
 def _inject_styles() -> None:
@@ -125,7 +125,7 @@ def main() -> None:
     st.set_page_config(page_title=PAGE_TITLE, page_icon="🧬", layout="wide")
     _inject_styles()
 
-    st.title("Breast Ultrasound Classifier with Grad-CAM")
+    st.title("Breast Cancer Detection AI")
     st.caption("Python · PyTorch · EfficientNet-B0 · Streamlit · trained on BreastMNIST (MedMNIST v2)")
     st.markdown(f'<div class="disclaimer-banner">{DISCLAIMER}</div>', unsafe_allow_html=True)
 

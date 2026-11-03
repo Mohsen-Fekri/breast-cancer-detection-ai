@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Breast Ultrasound Classifier</title>
+<title>Breast Cancer Detection AI</title>
 <meta name="description" content="EfficientNet-B0 breast ultrasound classifier with Grad-CAM, running in your browser. Trained on BreastMNIST, 0.916 test ROC-AUC.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -84,11 +84,11 @@
 <body>
 <div class="wrap">
   <header>
-    <h1>Breast Ultrasound Classifier</h1>
+    <h1>Breast Cancer Detection AI</h1>
     <p>A small project of mine: an EfficientNet-B0 trained on real breast ultrasound scans, with Grad-CAM to show where it's looking. It all runs in your browser, so any image you try stays on your computer.</p>
     <div class="links">
-      <a class="chip" href="https://github.com/Mohsen-Fekri/medical-image-cancer-detection-prototype">Code on GitHub</a>
-      <a class="chip" href="https://github.com/Mohsen-Fekri/medical-image-cancer-detection-prototype/blob/main/evaluation/breastmnist_results.json">Full test results</a>
+      <a class="chip" href="https://github.com/Mohsen-Fekri/breast-cancer-detection-ai">Code on GitHub</a>
+      <a class="chip" href="https://github.com/Mohsen-Fekri/breast-cancer-detection-ai/blob/main/evaluation/breastmnist_results.json">Full test results</a>
       <a class="chip" href="https://medmnist.com/">About the dataset</a>
     </div>
   </header>
@@ -134,7 +134,7 @@
     <h2>How it works</h2>
     <p>I fine-tuned an ImageNet EfficientNet-B0 on the 546 training images in BreastMNIST, a 224×224 version of the BUSI breast ultrasound dataset. To keep training manageable on a laptop CPU I froze the early layers and only trained the last three blocks.</p>
     <p>The browser can't run backprop, so Grad-CAM had to be done differently here. Because the network ends with average pooling and a single linear layer, the Grad-CAM weights are just that layer's weights, so I compute the heatmap in the forward pass and export it with the model to ONNX. On clearly benign scans the heatmap is empty, since nothing in the image pushes the score toward malignant.</p>
-    <p>It's a small dataset from a single hospital, and the model still misses about 1 in 7 malignant scans, so take the numbers for what they are. More detail is in the <a href="https://github.com/Mohsen-Fekri/medical-image-cancer-detection-prototype#readme">README</a>.</p>
+    <p>It's a small dataset from a single hospital, and the model still misses about 1 in 7 malignant scans, so take the numbers for what they are. More detail is in the <a href="https://github.com/Mohsen-Fekri/breast-cancer-detection-ai#readme">README</a>.</p>
   </section>
 
   <footer>

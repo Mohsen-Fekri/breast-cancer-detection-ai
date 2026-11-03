@@ -1,12 +1,12 @@
-# Breast Ultrasound Classifier
+# Breast Cancer Detection AI
 
-[![Live demo](https://img.shields.io/badge/Live%20demo-try%20it%20in%20your%20browser-0F766E)](https://mohsen-fekri.github.io/medical-image-cancer-detection-prototype/)
-![CI](https://github.com/Mohsen-Fekri/medical-image-cancer-detection-prototype/actions/workflows/ci.yml/badge.svg)
+[![Live demo](https://img.shields.io/badge/Live%20demo-try%20it%20in%20your%20browser-0F766E)](https://mohsen-fekri.github.io/breast-cancer-detection-ai/)
+![CI](https://github.com/Mohsen-Fekri/breast-cancer-detection-ai/actions/workflows/ci.yml/badge.svg)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 I trained an EfficientNet-B0 to tell malignant breast ultrasound scans apart from normal and benign ones, and added Grad-CAM so you can see which part of the image the model was looking at. It's trained on BreastMNIST (part of MedMNIST v2), which comes from the public BUSI breast ultrasound dataset.
 
-**Live demo:** https://mohsen-fekri.github.io/medical-image-cancer-detection-prototype/
+**Live demo:** https://mohsen-fekri.github.io/breast-cancer-detection-ai/
 
 Pick one of the sample scans or upload your own. The model runs in your browser, so nothing gets uploaded anywhere.
 
