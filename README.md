@@ -104,6 +104,10 @@ BreastMNIST is released under [CC BY 4.0](https://creativecommons.org/licenses/b
 - Yang, J., Shi, R., Wei, D. et al. MedMNIST v2: A large-scale lightweight benchmark for 2D and 3D biomedical image classification. *Scientific Data* 10, 41 (2023).
 - Al-Dhabyani, W., Gomaa, M., Khaled, H., Fahmy, A. Dataset of breast ultrasound images. *Data in Brief* 28, 104863 (2020).
 
+## Author
+
+Mohsen Fekri, Computer Science, York University · [LinkedIn](https://www.linkedin.com/in/mohsen-fekri) · justinfe@my.yorku.ca
+
 ## License
 
 MIT
